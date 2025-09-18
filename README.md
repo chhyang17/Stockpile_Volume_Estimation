@@ -1,83 +1,60 @@
-Stockpile Volume Estimation (LiDAR)
+# Stockpile Volume Estimation (LiDAR)
 
-Workflow for estimating gravel stockpile volumes from LiDAR: preprocessing in CloudCompare, followed by surface differencing and volume calculation in R (lidR + terra).
+**Workflow for estimating gravel stockpile volumes from LiDAR**: preprocessing in **CloudCompare**, followed by surface differencing and volume calculation in **R** (`lidR` + `terra`).  
 
-⚠️ Note: Results are approximations. No ground-truth checks were performed. The piles sit on a sloped base, so interpret volumes with caution.
+> ⚠️ **Note:** Results are **approximations only**. No ground-truth checks were performed. The piles sit on a **sloped base**, so interpret volumes with caution.  
 
-Preprocessing (CloudCompare)
+---
 
-Import the LiDAR dataset into CloudCompare (.las or .laz).
+## 🪓 Preprocessing (CloudCompare)
 
-Clip the region of interest
+1. **Load the LiDAR dataset**  
+   - Open the raw `.las` or `.laz` file in CloudCompare.  
 
-Use the scissors or crop tool to keep only the quarry/aggregate area.
+2. **Clip the region of interest**  
+   - Use the **Segment tool** (scissor icon) to crop the dataset and keep only the quarry/aggregate area.  
 
-Segment piles vs. surrounding ground
+3. **Separate piles from surrounding ground**  
+   - With the Segment tool, isolate and export two point clouds:  
+     - `piles.las` → points belonging to the aggregate piles.  
+     - `surrounding.las` → points representing the ground surface around the piles.  
 
-Manually or semi-automatically split the dataset into:
+4. **Save outputs**  
+   - Export each subset as a separate LAS file.  
 
-piles.las → points belonging to aggregate piles.
+👉 After preprocessing, you should have **two LAS files** ready for analysis (`piles.las` and `surrounding.las`).  
 
-surrounding.las → points representing the ground surface around piles.
 
-Save each as a separate LAS file.
+---
 
-(At this point you should have two LAS files: one for piles, one for surrounding ground.)
+## 📊 Analysis (R script)
 
-Analysis (R script)
+The script [`scripts/stockpile_volume.R`](scripts/stockpile_volume.R) performs:  
 
-The R script (scripts/stockpile_volume.R) performs the following steps:
+1. **Read LAS files** → `piles.las` and `surrounding.las`.  
+2. **Generate DTM** (Digital Terrain Model) from surrounding points.  
+3. **Generate DSM** (Digital Surface Model) from pile points.  
+4. **Align grids** (same CRS, resolution, and extent).  
+5. **Define pile footprint**  
+   - Use provided polygons *(if available)*.  
+   - Or create a convex hull around pile points.  
+6. **Compute DoD** (*Difference of Surfaces*): `DSM − DTM`.  
+7. **Mask negatives** → keep only positive thickness (pile above ground).  
+8. **Integrate volume**: thickness × cell area → cubic meters.  
+9. **Output results**:  
+   - PNG figures (optional).  
+   - CSV summary with volumes.  
 
-Read data (piles.las and surrounding.las).
+---
 
-Generate DTM (ground surface) from the surrounding points.
+## ⚙️ Usage
 
-Generate DSM (pile surface) from the pile points.
+Run from the command line:  
 
-Align rasters to ensure same grid, CRS, and resolution.
-
-Define pile footprint
-
-Use provided polygons (if available)
-
-Or generate a convex hull around the pile points.
-
-Compute Difference of Surfaces (DoD): DSM − DTM.
-
-Mask negative values → keep only positive thickness above ground.
-
-Integrate thickness × cell area to estimate volume in cubic meters.
-
-Output
-
-PNG figures (optional).
-
-CSV summary of volumes.
-
-Usage
+```bash
 Rscript scripts/stockpile_volume.R \
   --piles "/path/to/piles.las" \
   --sur "/path/to/surrounding.las" \
   --outdir "./output" \
   --res 0.5
 
-
---piles → LAS file containing pile points.
-
---sur → LAS file containing surrounding ground points.
-
---outdir → Output directory (will be created if missing).
-
---res → Grid resolution in meters (default: 0.5).
-
---footprints → (Optional) polygon file with pile footprints.
-
-Caveats
-
-Volumes are approximations derived from LiDAR and interpolation.
-
-No field validation was carried out.
-
-A sloped base under the piles may influence results.
-
-Ensure your data is in a metric CRS (X, Y, Z in meters) for correct volumes.
